@@ -66,7 +66,7 @@ int  main( void ) {
 
  
 
-
+    printf("mainpart.cu  Cuda based particle mover \n");
         
         /*----------------------------------------------------------------------
         // Read in all the time independent data and put them into MM struct.
