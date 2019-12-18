@@ -221,7 +221,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     
 
     //int DD33=1;   256,64
-    move<<< 256,128 >>>(dptr,dev_P,dev_MM,dev_DD);
+    move<<< 256,64 >>>(dptr,dev_P,dev_MM,dev_DD);
     cudaDeviceSynchronize();
     DD[0].time_now += CUDA_STEPS* DT_SEC;   // 0.01f;   
     time_now = DD[0].time_now;
@@ -231,19 +231,19 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     if (timetest ){
         //  Every hour a new data file is needed. Read dev_DD to obtain time_now
         
-        printf("\n runCuda  time_frac=%g >0.75\n",time_frac);
+        //printf("\n runCuda  time_frac=%g >0.75\n",time_frac);
         // Assume or test that the fourth ReadData is finished and move to dev_DD
         cudaMemcpy(dev_DD,DD,DDSizeGeneral,cudaMemcpyHostToDevice);
         //  Update DD3  
-                printf(" hourly time_now %g  last DD[0].DD3[0]=%d %d %d %d\n"
-                    ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
+        //        printf(" hourly time_now %g  last DD[0].DD3[0]=%d %d %d %d\n"
+        //            ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
         for (int i=0; i<4 ; i++)DD[0].DD3[i]=(DD[0].DD3[i]+1)%4;
-                printf(  " hourly time_now %g  next DD[0].DD3[0]=%d %d %d %d\n"
-                    ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
+        //        printf(  " hourly time_now %g  next DD[0].DD3[0]=%d %d %d %d\n"
+        //            ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
         
         // DD3[3] is next spot to be updated, will be updated in this section
         //  Thread this off to execute while elsewhere.
-                printf(" DD[# 1].time = %g %g %g %g\n",DD[0].time/3600.,DD[1].time/3600.,DD[2].time/3600.,DD[3].time/3600.);
+        //        printf(" DD[# 1].time = %g %g %g %g\n",DD[0].time/3600.,DD[1].time/3600.,DD[2].time/3600.,DD[3].time/3600.);
         
 
         
@@ -273,12 +273,12 @@ printf ( "  mem free %ld .... %f MB \n  mem total %ld....%f MB mem used %f MB\n"
   ,free_t,free_m,total_t,total_m,used_m);
 */
         float dhr=3600.;
-        printf(" DD[0:3].time = %g %g %g %g\n",DD[0].time/dhr,DD[1].time/dhr,DD[2].time/dhr,DD[3].time/dhr);
+        printf(" DD[     0:3].time = %g %g %g %g\n",DD[0].time/dhr,DD[1].time/dhr,DD[2].time/dhr,DD[3].time/dhr);
         printf(" DD[DDT[0:3]].time = %g %g %g %g\n",
            DD[DD[0].DD3[0]].time/dhr,DD[DD[0].DD3[1]].time/dhr,DD[DD[0].DD3[2]].time/dhr,DD[DD[0].DD3[3]].time/dhr);
 
         iDD+=1;
-        printf(" iDD = %d\n",iDD);
+        printf(" iDD = %d\n\n",iDD);
     }    // End of hourly DD update
 
     // unmap buffer object
@@ -411,7 +411,13 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/)
                 glutDestroyWindow(glutGetWindow());
                 return;
             #endif
+        case (112) : 
+        { std::chrono::milliseconds timespan(5000); std::this_thread::sleep_for(timespan);}    // sleep for 5sec = 5000ms
+        break ;
+        case (104) : 
+        {printf("\nesc = stop\n p = 5sec pause\n h = this help\n");} break;
     }
+    printf("key = %d\n",key);  // p pause is 112
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -504,7 +510,10 @@ int igrounded;
 int cudaindex = threadIdx.x + blockIdx.x * blockDim.x;
 int stride = blockDim.x * gridDim.x;
  
-
+if (cudaindex==-1 | cudaindex==-2){  //  0 2500
+    printf(" t.x=%d blockIdx.x=%d blockDim.x=%d gridDim.x=%d cudaindex=%d stride=%d\n",
+threadIdx.x,blockIdx.x,blockDim.x, gridDim.x,cudaindex,stride);
+}
 // Main time loop. Loop CUDA_STEPS times between returns for plotting
 for (int itime=0; itime<CUDA_STEPS; itime++){
 
@@ -625,14 +634,15 @@ if (i_ele>=0){     // good particle still in the mesh
     PP[Ip].z_present += dt_sec*Wpnow*1.;
     
     // using an Xbox from Particles in meters
-    float shrinkage = 1.0;   //dec 4 1.5 works
+    /*float shrinkage = 1.0;   //dec 4 1.5 works
             if (PP[Ip].x_present < MM[0].Xbox[0]/shrinkage) PP[Ip].x_present = MM[0].Xbox[0]/shrinkage;
             if (PP[Ip].x_present > MM[0].Xbox[1]/shrinkage) PP[Ip].x_present = MM[0].Xbox[1]/shrinkage;
             if (PP[Ip].y_present < MM[0].Xbox[2]/shrinkage) PP[Ip].y_present = MM[0].Xbox[2]/shrinkage;
             if (PP[Ip].y_present > MM[0].Xbox[3]/shrinkage) PP[Ip].y_present = MM[0].Xbox[3]/shrinkage;
-    
+    */
 
     Ipx = Ip%maxGLnum;   // incase we are moving more particles than can be plotted
+    Ipx = Ip%MAX_GLPARTICLES;
     pos[Ipx] = make_float4(scale*PP[Ip].x_present,-scale*PP[Ip].z_present,-scale*PP[Ip].y_present,  1.0f);
 
 }  //other if iele>0 loop end    
