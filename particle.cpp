@@ -4,6 +4,7 @@
 void PPartInit(struct PPart *host_P, struct MMesh *MM, int num_P)
 {
 
+//case   box
 float yrow;
 int jrow;
 int numrows=100;
@@ -23,14 +24,27 @@ for (int ip=0; ip<num_P; ip++)
         printf(" host_P[%d] %g %g %g\n", ip,host_P[ip].x_present,host_P[ip].y_present,host_P[ip].z_present);
 }
 
+//case  fill bay with a jiggle at nodal points
+printf(" MM[0].firstnodeborder = %d \n", MM[0].firstnodeborder);
+//MM[0].firstnodeborder=99827;
 int imesh =0;     //  99827  108049;
 for (int ip=0; ip<num_P; ip++) {
         host_P[ip].x_present = MM[0].X[imesh] + 1000.*(rand()/(float)RAND_MAX - 0.5);  
         host_P[ip].y_present = MM[0].Y[imesh] + 1000.*(rand()/(float)RAND_MAX - 0.5);  
         host_P[ip].z_present = MM[0].depth[imesh]*500.*0.0;
-imesh+=1; imesh=imesh%MM[0].node;
+        imesh+=1; 
+        imesh=imesh%MM[0].firstnodeborder;
 }
 
+//  Add the coastal border to last particle positions
+imesh =MM[0].firstnodeborder;     //  99827  108049;
+for (int ip=num_P-(MM[0].node-MM[0].firstnodeborder); ip<num_P; ip++) {
+        host_P[ip].x_present = MM[0].X[imesh] ;  
+        host_P[ip].y_present = MM[0].Y[imesh] ;  
+        host_P[ip].z_present = 0.0;
+imesh+=1; 
+if (imesh>=MM[0].node) imesh = MM[0].firstnodeborder;
+}
 
 printf(" host_P10 %g %g %g\n", 
 host_P[10].x_present,host_P[10].y_present,host_P[10].z_present);
