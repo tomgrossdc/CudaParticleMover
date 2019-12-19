@@ -100,7 +100,7 @@ struct MMesh {
     int nsigma;
     float Mask[352737];
     time_t ToDay;
-    int firstnodeborder=99827;
+    int firstnodeborder;
 };
 
 struct DData {
