@@ -66,11 +66,126 @@ for (int jbad = 0; jbad<1; jbad++){
 void ReadDataRegNetCDF(string& filename, int ifour, DData *DD, MMesh *MM)
 {
 // declarations of arrays for reading data are below LLL, LL
+long ij, ij2, isigm;
+int nx,ny;
+int node, nsigma, Depth, numtime; 
+//printf("  ReadData  "+filename);
+cout<<" ReadDataRegNetCDF: " << filename << endl;
+
+NcDim dim;
+
+NcFile dataFile(filename, NcFile::read);
+
+   NcVar data=dataFile.getVar("u_eastward");
+   if(data.isNull()) printf(" data.isNull u_eastward/n");
+   for (int i=0; i<4; i++){
+      dim = data.getDim(i);
+      size_t dimi = dim.getSize();
+      if (i==0) numtime=dimi;
+      if (i==1) Depth = dimi;
+      if (i==2) ny = dimi;
+      if (i==3) nx = dimi;
+
+      //cout<<"ifour="<<ifour<<" i= "<<i<<" dimi "<<dimi<<endl;
+   }
+//printf("dimi  ifour=%d  numtime=%d,Depth=%d,ny=%d,nx=%d total=%d\n",ifour,numtime,Depth, ny,nx, numtime*Depth*ny*nx*5);
+float LLL[numtime][1][ny][nx];
+
+// Cant dimension this to 15*693*509 = 26455275  so do one sigma level at time
+// float* LLLL= new float
+//float LLLL[5291055];
+
+// Declare start Vector specifying the index in the variable where
+// the first of the data values will be read.
+std::vector<size_t> start(4);
+
+start[0] = 0;
+start[1] = 0;
+start[2] = 0;
+start[3] = 0;
+
+// Declare count Vector specifying the edge lengths along each dimension of
+// the block of data values to be read.
+std::vector<size_t> count(4);
+
+count[0] = 1;
+count[1] = 1;
+count[2] = ny;
+count[3] = nx;
+
+
+// loop over sigma coordinate up to Depth times
+for (start[1]=0; start[1]<Depth; start[1]++) {
+   data.getVar(start,count,LLL);   
+        isigm = start[1];
+         ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+         {ij2=i*nx+j; if (MM[0].Mask[ij2]>.5){
+         DD[ifour].U[start[1]][ij] = LLL[0][0][i][j]; ij++; } }  }
+   }
+   
+
+   data=dataFile.getVar("v_northward");
+   if(data.isNull()) printf(" data.isNull v_northward/n");
+// loop over sigma coordinate by small groups of size Depth (=5)
+for (start[1]=0; start[1]<Depth; start[1]++) {
+   data.getVar(start,count,LLL);   
+         ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+         {ij2=i*nx+j; if (MM[0].Mask[ij2]>.5){
+         DD[ifour].V[start[1]][ij] = LLL[0][0][i][j]; ij++; } }  }
+   }
+
+//   WTF  There is no W velocity in the NetCDF file!
+   //data=dataFile.getVar("w");
+   //if(data.isNull()) printf(" data.isNull w/n");
+// loop over sigma coordinate by small groups of size Depth (=5)
+for (start[1]=0; start[1]<Depth; start[1]++) {
+   //data.getVar(start,count,LLL);   
+         ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+         {ij2=i*nx+j; if (MM[0].Mask[ij2]>.5){
+         DD[ifour].W[start[1]][ij] = 0.0         ;   ij++; } }  }
+    }
+
+
+
+   // ocean_time:units = "seconds since 2016-01-01 00:00:00" ;
+	//	ocean_time:calendar = "gregorian" ;
+   NcVar datat=dataFile.getVar("ocean_time");
+   if(datat.isNull()) printf(" datat.isNull ocean_time/n");
+   double LL[10];  // Bigger array works better than *LL, same as LL[1]  double is float
+   datat.getVar(LL);
+   //   try to use older data files to fill in missing ones
+   if(LL[0] > DD[ifour].time) 
+      {
+         DD[ifour].time = LL[0];   //Seconds 
+      }
+      else
+      {
+         DD[ifour].time +=3599. * 4. ;   // four hours since the previous value in this position
+      }
+   
+dataFile.close();
+
+//printf(" ReadDataRegNetCDF END   DD[%d].time = %g sec  %g hr\n\n"
+//      ,ifour,DD[ifour].time,DD[ifour].time/3600.);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//    Read the field netcdf files.  They have three types of meshes and new names.
+//    The three meshes will be in X: MM[0], Y: MM[1], Z: MM[2]
+//    Add a variable to the MM  
+//	float u(ocean_time, s_rho, eta_u, xi_u) ;
+//	float v(ocean_time, s_rho, eta_v, xi_v) ;
+//	float w(ocean_time, s_w, eta_rho, xi_rho) ;
+
+void ReadDataFieldNetCDF(string& filename, int ifour, DData *DD, MMesh *MM)
+{
+// declarations of arrays for reading data are below LLL, LL
 long ij, ij2;
 int nx,ny;
 int node, nsigma, Depth, numtime; 
 //printf("  ReadData  "+filename);
-cout<<"ReadDataRegNetCDF: " << filename << endl;
+cout<<"ReadDataFieldNetCDF: " << filename << endl;
 
 NcDim dim;
 
@@ -88,7 +203,7 @@ NcFile dataFile(filename, NcFile::read);
 
       //cout<<"ifour="<<ifour<<" i= "<<i<<" dimi "<<dimi<<endl;
    }
-printf("dimi  ifour=%d  numtime=%d,Depth=%d,ny=%d,nx=%d\n",ifour,numtime,Depth, ny,nx);
+//printf("dimi  ifour=%d  numtime=%d,Depth=%d,ny=%d,nx=%d\n",ifour,numtime,Depth, ny,nx);
 float LLL[numtime][Depth][ny][nx];
 
 // Declare start Vector specifying the index in the variable where
@@ -172,6 +287,7 @@ for (start[1]=0; start[1]<15; start[1]+=count[1]) {
 
 dataFile.close();
 
-printf(" ReadDataRegNetCDF END   DD[%d].time = %g sec  %g hr\n\n"
-      ,ifour,DD[ifour].time,DD[ifour].time/3600.);
+//printf(" ReadDataFieldNetCDF END   DD[%d].time = %g sec  %g hr\n\n"
+//      ,ifour,DD[ifour].time,DD[ifour].time/3600.);
+
 }

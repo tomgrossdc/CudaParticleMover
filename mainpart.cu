@@ -206,7 +206,7 @@ host_P = (PPart *)malloc(PPSizeGeneral);
 
 PPartInit(host_P,MM,num_P);
 
-cudaMemcpy(dev_MM,MM,MMSizeGeneral,cudaMemcpyHostToDevice);
+//cudaMemcpy(dev_MM,MM,MMSizeGeneral,cudaMemcpyHostToDevice);
 
 //PPart *dev_P;
 //size_t PPSizeGeneral = (sizeof(PPart)*num_P);

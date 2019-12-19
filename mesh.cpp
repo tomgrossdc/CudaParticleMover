@@ -470,6 +470,8 @@ printf("sizeof Mask %ld\n",sizeof(Mask));
        {if (Mask[i][j]>.5){MM[0].Lat[ij] = LLL[i][j]; ij++;} }  }
 
  node = ij;
+ MM[0].firstnodeborder=node;  // initialize the first border node
+
  summask=0;
    for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++){
        if((i-1)>=0) {

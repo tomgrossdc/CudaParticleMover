@@ -14,6 +14,6 @@ using namespace netCDF::exceptions;
 void ReadData(double time_now, int ifour, struct DData *DD, struct MMesh *MM);
 
 void ReadDataRegNetCDF(string& filename, int ifour, struct DData *DD, struct MMesh *MM);
-
+void ReadDataFieldNetCDF(string& filename, int ifour, struct DData *DD, struct MMesh *MM);
 
 #endif

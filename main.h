@@ -30,11 +30,11 @@
 #define NSIGMA 15
 #define NELE 220000    //  g 15800
 #define NUM_PARTICLES 150000   //250000 65000dec4  1500625 g1625 1600 x 1650 1700 1800 2000
-#define MAX_GLPARTICLES 50000 //250000 65000
+#define MAX_GLPARTICLES 150000 //250000 65000
 #define DT_SEC 1.5
 #define CUDA_STEPS 60
 #define FILE_DTIME 3600.
-#define SCALE_GL 0.000015  // .00001 scale PP.x_ to pos[Ipx][4]  
+#define SCALE_GL 0.00003  // .000015(full bay) scale PP.x_ to pos[Ipx][4]  
 
 
 #include <iostream>
@@ -100,6 +100,7 @@ struct MMesh {
     int nsigma;
     float Mask[352737];
     time_t ToDay;
+    int firstnodeborder;
 };
 
 struct DData {
