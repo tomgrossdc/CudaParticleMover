@@ -356,7 +356,9 @@ void display()
     glEnable(GL_POINT_SMOOTH);
     glEnable(GL_BLEND);
 
-    glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height);
+    //glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height);
+    glDrawArrays(GL_POINTS, 0, MAX_GLPARTICLES);
+
     glDisableClientState(GL_VERTEX_ARRAY);
     char buffer[25] ;
     float myFloat = g_time_now/3600.;   // convert to hours
