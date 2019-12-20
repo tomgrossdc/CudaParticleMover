@@ -87,79 +87,71 @@ printf("mesh::meshinit(int,int) old values: node=%ld  nsigma=%ld \n",node,nsigma
 		
 }
 
-//Create a box for the mesh
-void Mesh::set_Mesh(int node, int nsigma){
-// Set variables  Lon, Lat, depth, sigma
-printf("mesh.cpp set_Mesh node=%d  nsigma=%d\n",node,nsigma);
+// Move mesh.lon, lat, triangle data  etc.  into MMesh
+void Mesh::move_meshtoMMesh(int icase, struct MMesh *MM){
+         int iMM = max(icase-1,0);
 
-// The arrays were initialized in Mesh() as empty arrays length[node]
-	int ix,iy;
-   float x,y; 
-	float xmin=-75.;
-	float xmax=-70.;
-	float ymin = 36.;
-	float ymax = 38.;
-   int isdegrees=1;
+        if (   node>NODE ||    nele > NELE) printf("\n\n\n\nWARNING NODE OR NELE ARE TOO SMALL\n\n\n\n");
+        printf("   move_meshtoMMesh  after triangulate     node %ld  node %ld  MM[%d].node %d \n",   node, node, iMM,MM[iMM].node);
+        
+        printf("Copy the derived    X,Y to  the MMesh Struct MM.X,Y   nele = %ld\n",   nele);
+        
+        for (int i=0; i<MM[iMM].node; i++){
+            MM[iMM].Lon[i]=   Lon[i];
+            MM[iMM].Lat[i]=   Lat[i];	
+            MM[iMM].X[i]=   X[i];
+            MM[iMM].Y[i]=   Y[i];
+            MM[iMM].depth[i]=   depth[i];  
+            if (i%(MM[iMM].node/15)==0) {
+                printf(" MM[iMM].XY[%d] %g %g  MM[iMM].LonLat[%d]= %g %g \n",
+                i, MM[iMM].X[i],MM[iMM].Y[i],i,MM[iMM].Lon[i],MM[iMM].Lat[i] );
+            }
+        }
+        for(int i=(MM[iMM].node-8); i<MM[iMM].node; i++)
+        printf(" MM[iMM].XY[%d] %g %g  MM[iMM].LonLat[%d]= %g %g \n",
+        i, MM[iMM].X[i],MM[iMM].Y[i],i,MM[iMM].Lon[i],MM[iMM].Lat[i] );
+        
+        for (int i=0; i<MM[iMM].nsigma; i++){ MM[iMM].sigma[i]=   sigma[i];}
+        
+        for (int j=0; j<3; j++){
+            MM[iMM].factor[j] =    factor[j];
+            for (int i=0; i<   nele; i++){
+                MM[iMM].a_frac[i][j] =    a_frac[i][j] ;
+                MM[iMM].b_frac[i][j] =    b_frac[i][j] ;
+                MM[iMM].c_frac[i][j] =    c_frac[i][j] ;
+                MM[iMM].tri_connect[i][j] =    tri_connect[i][j];
+                MM[iMM].ele[i][j] =    ele[i][j];
+            }
+        }    
+        
+        MM[iMM].factor[0]=0.123;
+        MM[iMM].factor[1]=0.246;
+        MM[iMM].factor[2]=0.369;
+        
 
-	xmin = -60000.37;
-	xmax = 60000.89;
-	ymin = -60000.44;
-	ymax = 60000.98;
-	isdegrees = 0;
-	
 
-    float dx = (xmax-xmin)/32.;
-	float dy = (ymax-ymin)/32.;
-	int nrows = 32;
-
-	for (int i=0; i<node; i++) {
-		iy = i/(nrows);
-		ix = i-iy*nrows;
-		Lon[i] =  ix*dx +xmin; 
-		Lat[i] =  iy*dy +ymin;
-		depth[i]= 10.;
-      //printf(" Lon[%d] %f %f %f \n",i,Lon[i],Lat[i],depth[i]);
-
-	}
-	for (int i=0; i<nsigma; i++){
-		sigma[i]=float(i)/float(nsigma-1);
-	}
-	
-	
-   if (isdegrees==1){
-	Set_Center();
-	//After read in Lon[i] and Lat[0:node-1], change them from degree to meter and store in X,Y array.
-	Deg2Meter();	
-	}
-   else {
-      for (int i=0;i<node;i++) {
-   	   X[i] = Lon[i];
-  	   Y[i] = Lat[i];
-      }
-   }
-   
-   return;		
 }
 
 //Read lon, lat, depth and sigma from struct MMesh read from the Netcdf file.
-void Mesh::set_Mesh_MMESH(struct MMesh *MM){
+void Mesh::set_Mesh_MMESH(int icase, struct MMesh *MM){
 // Set variables  mesh.Lon, Lat, depth, sigma from MM.Lon etc.
-cout<<" Mesh::set_Mesh_MMESH MM.node="<<MM[0].node<<endl;
-printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[0].node,MM[0].nsigma);
+int iMM = max(icase-1,0); 
+cout<<" Mesh::set_Mesh_MMESH MM.node="<<MM[iMM].node<<endl;
+printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[iMM].node,MM[iMM].nsigma);
 
 // The arrays were initialized in Mesh() as empty arrays length[MM.node]
 
 	int isdegrees = 1;
 	
-	for (int i=0; i<MM[0].node; i++) {
+	for (int i=0; i<MM[iMM].node; i++) {
 
-		Lon[i] =  MM[0].Lon[i]; 
-		Lat[i] =  MM[0].Lat[i];
-		depth[i]= MM[0].depth[i];
+		Lon[i] =  MM[iMM].Lon[i]; 
+		Lat[i] =  MM[iMM].Lat[i];
+		depth[i]= MM[iMM].depth[i];
 
 	}
-	for (int i=0; i<MM[0].nsigma; i++){
-		sigma[i]=MM[0].sigma[i];
+	for (int i=0; i<MM[iMM].nsigma; i++){
+		sigma[i]=MM[iMM].sigma[i];
 	}
 	
 	
@@ -169,7 +161,7 @@ printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[0].node,MM[0].nsi
 	Deg2Meter();	
 	}
    else {
-      for (int i=0;i<MM[0].node;i++) {
+      for (int i=0;i<MM[iMM].node;i++) {
    	   X[i] = Lon[i];
   	   Y[i] = Lat[i];
       }
@@ -180,7 +172,8 @@ printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[0].node,MM[0].nsi
 
 void Mesh::Set_Center() {
   printf(" Set_Center %ld \n",node);
-
+   LON_LAT_KEY_0=0.;
+   LON_LAT_KEY_1=0.;
  for (int i=0;i<node;i++) {
  	LON_LAT_KEY_0 =LON_LAT_KEY_0+ Lon[i]/node;
  	LON_LAT_KEY_1 =LON_LAT_KEY_1+ Lat[i]/node;   
@@ -203,6 +196,15 @@ float DEG_PER_METER= 90./(10000*1000);
 }   //End of Deg2Meter().
 
 
+
+        /*-------------------------------------------------------------
+        // An important function to set up tri-connection in the mesh.
+        // Include triangle.h and triangle.c 
+        // from Jonathan Richard Shewchuk's Triangle Versions 1.3 and 1.4   
+        // Thanks Jonathan Richard Shewchuk, ect. 
+        // After calculation, save result in tri-connect and ele array.
+        // Now the performance of code is very good.
+        -------------------------------------------------------------*/
 void Mesh::ele_func_tripart() {
 
    struct triangulateio in, mid;
@@ -393,6 +395,11 @@ Mesh::~Mesh() {
 }
 
 
+///////////////////////////////////////////////////////
+//////////////      REGULAR     ///////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
 
 void ReadMesh(string& filename, struct MMesh *MM)
 {
@@ -529,53 +536,53 @@ printf("sizeof Mask %ld\n",sizeof(Mask));
 
 dataFile.close();
 printf(" ReadMesh                  node = %d\n", MM[0].node);
-AddOutsideLonLat(MM);
+AddOutsideLonLat(0,MM);
 printf(" ReadMesh after AddOutside node = %d\n", MM[0].node);
 
 }
 
-void AddOutsideLonLat(struct MMesh *MM){
+void AddOutsideLonLat(int iMM, struct MMesh *MM){
 int nodemore;
 
 // Xbox will be changed to meters in Particle initialize
-MM[0].Xbox[0]= -78.;    // Lon min
-MM[0].Xbox[1]=  -73.;    //Lon max
-MM[0].Xbox[2]= 36.;    // Lat min
-MM[0].Xbox[3]=  41.;    // Lat max
+MM[iMM].Xbox[0]= -78.;    // Lon min
+MM[iMM].Xbox[1]=  -73.;    //Lon max
+MM[iMM].Xbox[2]= 36.;    // Lat min
+MM[iMM].Xbox[3]=  41.;    // Lat max
 
-nodemore = MM[0].node;
+nodemore = MM[iMM].node;
 
 for (int i=0; i<2; i++){
    for (int j=0; j<2; j++){
-      MM[0].Lon[nodemore] = MM[0].Xbox[i];
-      MM[0].Lat[nodemore] = MM[0].Xbox[j+2];
-      MM[0].depth[nodemore]= 5.;
+      MM[iMM].Lon[nodemore] = MM[iMM].Xbox[i];
+      MM[iMM].Lat[nodemore] = MM[iMM].Xbox[j+2];
+      MM[iMM].depth[nodemore]= 5.;
       nodemore++;
    }
 }
-   MM[0].Lon[nodemore] = (MM[0].Xbox[0]+MM[0].Xbox[1] )/2.;  // 01 12 23 34
-   MM[0].Lat[nodemore] = MM[0].Xbox[2];  // 01 12 23 34
-   MM[0].depth[nodemore]= 5.;
+   MM[iMM].Lon[nodemore] = (MM[iMM].Xbox[0]+MM[iMM].Xbox[1] )/2.;  // 01 12 23 34
+   MM[iMM].Lat[nodemore] = MM[iMM].Xbox[2];  // 01 12 23 34
+   MM[iMM].depth[nodemore]= 5.;
    nodemore++;
-   MM[0].Lon[nodemore] = (MM[0].Xbox[0]+MM[0].Xbox[1] )/2.;  // 01 12 23 34
-   MM[0].Lat[nodemore] = MM[0].Xbox[3];  // 01 12 23 34
-   MM[0].depth[nodemore]= 5.;
+   MM[iMM].Lon[nodemore] = (MM[iMM].Xbox[0]+MM[iMM].Xbox[1] )/2.;  // 01 12 23 34
+   MM[iMM].Lat[nodemore] = MM[iMM].Xbox[3];  // 01 12 23 34
+   MM[iMM].depth[nodemore]= 5.;
    nodemore++;
-   MM[0].Lon[nodemore] = MM[0].Xbox[0];  // 01 12 23 34
-   MM[0].Lat[nodemore] = (MM[0].Xbox[2]+MM[0].Xbox[3] )/2.;  // 01 12 23 34
-   MM[0].depth[nodemore]= 5.;
+   MM[iMM].Lon[nodemore] = MM[iMM].Xbox[0];  // 01 12 23 34
+   MM[iMM].Lat[nodemore] = (MM[iMM].Xbox[2]+MM[iMM].Xbox[3] )/2.;  // 01 12 23 34
+   MM[iMM].depth[nodemore]= 5.;
    nodemore++;
-   MM[0].Lon[nodemore] = MM[0].Xbox[1];  // 01 12 23 34
-   MM[0].Lat[nodemore] = (MM[0].Xbox[2]+MM[0].Xbox[3] )/2.;  // 01 12 23 34
-   MM[0].depth[nodemore]= 5.;
+   MM[iMM].Lon[nodemore] = MM[iMM].Xbox[1];  // 01 12 23 34
+   MM[iMM].Lat[nodemore] = (MM[iMM].Xbox[2]+MM[iMM].Xbox[3] )/2.;  // 01 12 23 34
+   MM[iMM].depth[nodemore]= 5.;
    nodemore++;
 
-MM[0].node = nodemore;
+MM[iMM].node = nodemore;
 
 
 }
 
-string NetCDFfiledate(struct MMesh *MM){
+string NetCDFfiledateold(struct MMesh *MM){
    // Same data is in DData[0].ToDay and MMesh[0].ToDay  
    // But they need separate calls to initialize
 // create updated filename based on given root name Regular
@@ -617,7 +624,7 @@ struct tm * tday = gmtime(&MM[0].ToDay);
     return newname;
 }
 
-string NetCDFfiledate(struct DData *MM){
+string NetCDFfiledateold(struct DData *MM){
    // Same data is in DData[0].ToDay and MMesh[0].ToDay  
    // But they need separate calls to initialize
 // create updated filename based on given root name Regular
@@ -647,6 +654,237 @@ struct tm * tday = gmtime(&MM[0].ToDay);
     tday = gmtime(&MM[0].ToDay);
     n = sprintf(buffer
      ,"/media/tom/MyBookAllLinux/NOSnetcdf/%d%02d/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc"
+     ,tday->tm_year +1900, tday->tm_mon +1
+     ,tday->tm_year +1900, tday->tm_mon +1 
+     ,tday->tm_mday,6*int(tday->tm_hour/6),1+(tday->tm_hour%6));
+
+    string newname;
+    for (int i=0; i<n; i++) newname=newname+buffer[i]; 
+
+    return newname;
+}
+
+
+///////////////////////////////////////////////////////
+//////////////      FIELDS      ///////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+void ReadMeshField(string& filename, int icase, struct MMesh *MM)
+{
+   // ReadMeshField will read four MM[0:3], U,V,W,Angle
+
+//  icase =   0-Regular, 1-Field U,  2-Field V, 3-Field W, 4-Field Angle
+int iMM=0;
+if (icase>0) iMM=icase-1;   //  fill up MM[0] with U, MM[1] with V etc.
+NcDim dim;
+long ij;
+int nx,ny;
+int node,nodemore;
+// codes for netcdf variables Regular,  
+std::vector<std::string> MeshCode={
+            "mask","Longitude","Latitude","h","Depth",                         //  bathymetry, sigma levels
+            "mask_u","lon_u","lat_u","","",        // u    eta_u, xi_u
+            "mask_v","lon_v","lat_v","","",        // v    eta_v, xi_v      
+            "mask_rho","lon_rho","lat_rho","h","s_rho",  // w zeta (surface) and depth   eta_rho, xi_rho
+            "angle","lon_rho","xi_rho","",""     // "angle between XI-axis and EAST"
+            "mask_psi","lon_psi","lat_psi",""   //  psi    eta_psi,  xi_psi
+        };
+cout<<"ReadMeshField: " << filename << endl;
+NcFile dataFile(filename, NcFile::read);
+
+   NcVar data=dataFile.getVar(MeshCode[0]);
+   if(data.isNull()) printf(" data.isNull Mask/n");
+for (int i=0; i<2; i++){
+      dim = data.getDim(i);
+      size_t dimi = dim.getSize();
+      if (i==0) ny = dimi;
+      if (i==1) nx = dimi;
+
+      cout<<"ReadMeshField  i= "<<i<<" dimi= "<<dimi<<endl;
+   }
+double Mask[ny][nx];
+double LLL[ny][nx];
+//double LLat[ny][nx];
+//std::vector<std::vector<double> > LLL( ny , std::vector<double> (nx));  
+//std::vector<std::vector<double> > Mask( ny , std::vector<double> (nx));  
+
+
+printf("sizeof LLL  %ld\n",sizeof(LLL));
+
+printf("sizeof Mask %ld\n",sizeof(Mask));
+
+   data.getVar(Mask);
+   ij=0;
+   for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+    { MM[iMM].Mask[ij] = Mask[i][j]; ij++; }  }
+
+   data=dataFile.getVar(MeshCode[1]);
+   if(data.isNull()) printf(" data.isNull Longitude/n");
+   data.getVar(LLL);
+    ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+       {if (Mask[i][j]>.5){MM[iMM].Lon[ij] = LLL[i][j]; ij++;} }  }
+
+
+ node = ij;
+ int summask=0;
+   for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++){
+       if((i-1)>=0) {
+                        summask += Mask[i-1][j];
+         if((j+1)<node) summask += Mask[i-1][j+1];
+         if((j-1)>=0  ) summask += Mask[i-1][j-1];
+       }
+       if((i+1)<node) {
+                        summask += Mask[i+1][j];
+         if((j+1)<node) summask += Mask[i+1][j+1];
+         if((j-1)>=0  ) summask += Mask[i+1][j-1];
+       }
+       if((j+1)<node)   summask += Mask[i][j+1];
+       if((j-1)>=0  )   summask += Mask[i][j-1];
+      
+       if (Mask[i][j]==0 && summask > 0 ){
+          MM[iMM].Lon[node] = LLL[i][j];
+          MM[iMM].depth[node]=0.0;
+          node++;}  
+          summask=0; 
+      } }  // i,j loop
+
+  data=dataFile.getVar(MeshCode[2]);
+  if(data.isNull()) printf(" data.isNull Latitude/n");
+  data.getVar(LLL);
+    ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+       {if (Mask[i][j]>.5){MM[iMM].Lat[ij] = LLL[i][j]; ij++;} }  }
+
+ node = ij;
+ MM[iMM].firstnodeborder=node;  // initialize the first border node
+
+ summask=0;
+   for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++){
+       if((i-1)>=0) {
+                        summask += Mask[i-1][j];
+         if((j+1)<node) summask += Mask[i-1][j+1];
+         if((j-1)>=0  ) summask += Mask[i-1][j-1];
+       }
+       if((i+1)<node) {
+                        summask += Mask[i+1][j];
+         if((j+1)<node) summask += Mask[i+1][j+1];
+         if((j-1)>=0  ) summask += Mask[i+1][j-1];
+       }
+       if((j+1)<node)   summask += Mask[i][j+1];
+       if((j-1)>=0  )   summask += Mask[i][j-1];
+      
+       if (Mask[i][j]==0 && summask > 0 ){
+          MM[iMM].Lat[node] = LLL[i][j];
+          MM[iMM].depth[node]=0.0;
+          node++;}  
+          summask=0; 
+      } }  // i,j loop
+
+
+   data=dataFile.getVar(MeshCode[3]);
+   if(data.isNull()) printf(" data.isNull h/n");
+   data.getVar(LLL);
+    ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+       {if (Mask[i][j]>.5){MM[iMM].depth[ij] = LLL[i][j]; ij++;} }  }
+
+
+    MM[iMM].node = node;
+    printf(" masked Lon, Lat num ij = %ld\n",ij);
+
+
+   /* Although labeled sigma, in Regulargrid this is Depth
+   Apparently the regular grid gets rid of sigma variations
+   and just uses fixed depths for the 3d
+   */
+   data=dataFile.getVar(MeshCode[4]);
+   if(data.isNull()) printf(" data.isNull Depth/n");
+   dim = data.getDim(0);
+   size_t dimi = dim.getSize();
+   MM[iMM].nsigma=dimi;
+   cout<<" ReadMesh Depth dimi="<<dimi <<endl;
+   double sigma[dimi];
+   data.getVar(sigma);
+   for (int i=0; i<dimi; i++) MM[iMM].sigma[i]=sigma[i];
+
+
+
+// not needed as LL Mask will be deleted on exit from this routine
+//delete [] LLL;
+//delete [] Mask;
+
+dataFile.close();
+printf(" ReadMesh                  node = %d\n", MM[iMM].node);
+AddOutsideLonLat(iMM,MM);
+printf(" ReadMesh after AddOutside node = %d\n", MM[iMM].node);
+
+}
+
+
+string NetCDFfiledate(char* filenametemplate,struct MMesh *MM){
+   // Same data is in DData[0].ToDay and MMesh[0].ToDay  
+   // But they need separate calls to initialize
+// create updated filename based on given root name Regular
+// and the time seconds ToDay 
+// Call from elsewhere after doing this in mainline:
+/*
+
+    MM[0].ToDay +=3600;  // for hourly files
+    string newername = NetCDFfiledate(MM);
+*/
+char buffer [125];
+int n;
+
+struct tm * tday = gmtime(&MM[0].ToDay);
+
+    //ToDay +=3600;
+    tday = gmtime(&MM[0].ToDay);
+    //n = sprintf(buffer
+    // ,"/home/tom/code/NOSfiles/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc"
+    // ,tday->tm_year +1900, tday->tm_mon +1, tday->tm_mday,6*int(tday->tm_hour/6),1+(tday->tm_hour%6));
+   // n = sprintf(buffer
+   //  ,"/media/tom/MyBookAllLinux/NOSnetcdf/%d%02d/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc"
+   n = sprintf(buffer,filenametemplate
+     ,tday->tm_year +1900, tday->tm_mon +1
+     ,tday->tm_year +1900, tday->tm_mon +1 
+     ,tday->tm_mday,6*int(tday->tm_hour/6),1+(tday->tm_hour%6));
+
+    string newname;
+    for (int i=0; i<n; i++) newname=newname+buffer[i]; 
+
+    return newname;
+}
+
+string NetCDFfiledate(char* filenametemplate,struct DData *MM){
+   // Same data is in DData[0].ToDay and MMesh[0].ToDay  
+   // But they need separate calls to initialize
+// create updated filename based on given root name Regular
+// and the time seconds ToDay 
+// Call from elsewhere after doing this in mainline:
+/*
+int year = 2019, month=5, day=12, hour= 0, minute=5;
+tm today = {}; 
+today.tm_year =year-1900 ; 
+today.tm_mon = month-1;
+today.tm_mday = day;
+today.tm_hour = hour;
+time_t ToDay = mktime(&today);
+DD[0].ToDay = ToDay; 
+
+// Then anywhere do:
+    MM[0].ToDay +=3600;  // for hourly files
+    string newername = NetCDFfiledate(MM);
+*/
+char buffer [125];
+int n;
+
+struct tm * tday = gmtime(&MM[0].ToDay);
+// char filetemplate[]="/home/tom/code/NOSfiles/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc"
+
+    //ToDay +=3600;
+    tday = gmtime(&MM[0].ToDay);
+    //n = sprintf(buffer
+    // ,"/media/tom/MyBookAllLinux/NOSnetcdf/%d%02d/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc"
+   n = sprintf(buffer,filenametemplate
      ,tday->tm_year +1900, tday->tm_mon +1
      ,tday->tm_year +1900, tday->tm_mon +1 
      ,tday->tm_mday,6*int(tday->tm_hour/6),1+(tday->tm_hour%6));

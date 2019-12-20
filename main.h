@@ -1,7 +1,7 @@
 /***************************************************************************
  *   Copyright (C) 2004 by                                       	   *
  *  Tom Gross                                                              *
- *  Hong Lin                                                               *
+ *                                                            *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -101,6 +101,7 @@ struct MMesh {
     float Mask[352737];
     time_t ToDay;
     int firstnodeborder;
+    char* filetemplate;
 };
 
 struct DData {
@@ -114,13 +115,16 @@ struct DData {
     int DD3[4];
     time_t ToDay;
     float time_now;
+    char* filetemplate;
 
 };
 void Cuda_Move();
 void ReadMesh(string& filename, struct MMesh *MM);
-string NetCDFfiledate(struct MMesh *MM);
-string NetCDFfiledate(struct DData *MM);
-
+string NetCDFfiledateold(struct MMesh *MM);
+string NetCDFfiledateold(struct DData *MM);
+void ReadMeshField(string& filename, int icase, struct MMesh *MM);
+string NetCDFfiledate(char* filenametemplate, struct MMesh *MM);
+string NetCDFfiledate(char* filenametemplate,struct DData *MM);
 
 
 

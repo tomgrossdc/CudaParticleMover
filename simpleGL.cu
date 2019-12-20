@@ -231,25 +231,20 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     if (timetest ){
         //  Every hour a new data file is needed. Read dev_DD to obtain time_now
         
-        //printf("\n runCuda  time_frac=%g >0.75\n",time_frac);
-        // Assume or test that the fourth ReadData is finished and move to dev_DD
+        // Assume or test that the fourth ReadData thread is finished and move to dev_DD  BROKEN
         cudaMemcpy(dev_DD,DD,DDSizeGeneral,cudaMemcpyHostToDevice);
+
         //  Update DD3  
-        //        printf(" hourly time_now %g  last DD[0].DD3[0]=%d %d %d %d\n"
-        //            ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
         for (int i=0; i<4 ; i++)DD[0].DD3[i]=(DD[0].DD3[i]+1)%4;
-        //        printf(  " hourly time_now %g  next DD[0].DD3[0]=%d %d %d %d\n"
-        //            ,time_now/3600.,DD[0].DD3[0],DD[0].DD3[1],DD[0].DD3[2],DD[0].DD3[3]);
-        
+
         // DD3[3] is next spot to be updated, will be updated in this section
         //  Thread this off to execute while elsewhere.
         //        printf(" DD[# 1].time = %g %g %g %g\n",DD[0].time/3600.,DD[1].time/3600.,DD[2].time/3600.,DD[3].time/3600.);
         
-
-        
         //  New generated filename routine:
         DD[0].ToDay +=3600;  // for hourly files
-        string newername = NetCDFfiledate(DD);
+        string newername = NetCDFfiledate(DD[0].filetemplate,DD);
+
         bool RunThreadRead = true;
         if (RunThreadRead){
             std::thread t1(ReadDataRegNetCDF, std::ref(newername),std::ref(DD[0].DD3[3]),
