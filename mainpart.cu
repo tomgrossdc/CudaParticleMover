@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------
-
+Dec. 19, 2019  after refactor/  next objective is to read ROMS
 
 //
 // C++ Interface: main
@@ -77,6 +77,8 @@ int  main( void ) {
         MM[0].ToDay = ToDay;     
         MM[0].filetemplate = 
         "/media/tom/MyBookAllLinux/NOSnetcdf/%d%02d/nos.cbofs.regulargrid.%d%02d%02d.t%02dz.n%03d.nc";
+        MM[0].filetemplate = 
+        "/media/tom/MyBookAllLinux/NOSnetcdf/%d%02d/nos.cbofs.fields.%d%02d%02d.t%02dz.n%03d.nc";
         string newername = NetCDFfiledate(MM[0].filetemplate,MM);
         int icase = 0;
 
@@ -169,8 +171,8 @@ int  main( void ) {
         //  Makes the coastline capture grounded particles, as it is not read as a velocity
         DD[0].ToDay =MM[0].ToDay;
         for(int ifour = 0; ifour<4; ifour++){
-            for (int i=0; i<MM[0].node; i++){
-                for(int isig=0; isig<MM[0].nsigma; isig++){
+            for (int i=0; i<NODE; i++){
+                for(int isig=0; isig<NSIGMA; isig++){
                     DD[ifour].U[isig][i]=0.0;
                     DD[ifour].V[isig][i]=0.0;
                     DD[ifour].W[isig][i]=0.0;
@@ -178,12 +180,14 @@ int  main( void ) {
             }
             DD[0].ToDay +=3600;  // for hourly files
             string newername = NetCDFfiledate(DD[0].filetemplate,DD);
-            ReadDataRegNetCDF(newername,ifour,DD,MM);
-            //ReadDataRegNetCDF(filename[ifour],ifour,DD,MM);
-            printf("ReadDataRegNetCDF finished,  DD[%d].time=%g sec time=%g hr \n",ifour,DD[ifour].time,DD[ifour].time/3600.);
-            int id = 50;
-            printf("ReadDataRegNetCDF DD[%d].time %gs %ghr \n  DD[%d].UV[0][%d] %g %g \n  MM[0].X[10]=%g\n\n",
-              ifour, DD[ifour].time,DD[ifour].time/3600,ifour,id,DD[ifour].U[0][id],DD[ifour].V[0][id],MM[0].X[10]);
+            //ReadDataRegNetCDF(newername,ifour,DD,MM);
+            ReadFieldNetCDF(newername,ifour, DD, MM);
+            printf("ReadData finished,  DD[%d].time=%g sec time=%g hr \n",ifour,DD[ifour].time,DD[ifour].time/3600.);
+            int id = 50; int isig=2;
+            printf("ReadData DD[%d].time %gs %ghr \n  DD[%d].UVW[%d][%d] %g %g %g \n  MM[0].XY[%d]= %g  %g\n\n",
+              ifour, DD[ifour].time,DD[ifour].time/3600,
+              ifour,isig, id,DD[ifour].U[isig][id],DD[ifour].V[isig][id],DD[ifour].W[isig][id],
+              id,MM[0].X[id],MM[0].Y[id]);
         }
     cout<<endl;
     time_now = (DD[0].time + DD[1].time)/2.;   // timefrac = .25

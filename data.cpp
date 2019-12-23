@@ -170,6 +170,9 @@ dataFile.close();
 }
 
 
+
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 //    Read the field netcdf files.  They have three types of meshes and new names.
 //    The three meshes will be in X: MM[0], Y: MM[1], Z: MM[2]
@@ -177,6 +180,101 @@ dataFile.close();
 //	float u(ocean_time, s_rho, eta_u, xi_u) ;
 //	float v(ocean_time, s_rho, eta_v, xi_v) ;
 //	float w(ocean_time, s_w, eta_rho, xi_rho) ;
+void ReadFieldNetCDF(string& filename,int ifour, DData *DD, MMesh *MM)
+{   
+    // MeshCode has the three variable names. 
+    // u, v, w  is MeshCode[0]    icase=0, 1, 2   also MM[icase]
+    //   angle MM[3] is already set by first mesh read
+
+long ij, ij2;
+int nx,ny;
+int node, nsigma, Depth, numtime; 
+NcDim dim;
+float LLL[NODE];
+
+std::vector<std::string> MeshCode={
+            "u","v","w","angle",
+        };
+
+// open the netcdf file
+NcFile dataFile(filename, NcFile::read);
+for (int icase=0; icase<3; icase++){
+   //printf(" ReadFieldData ",icase);
+// u, v, w  is MeshCode[0]    icase=0, 1, 2   also MM[icase]
+   NcVar data=dataFile.getVar(MeshCode[icase]);
+   if(data.isNull()) printf("ReadVariableNetCDF data.isNull /n");
+   printf("ReadFieldData DD[%d]  icase=%d dimi= ",ifour, icase);
+   for (int i=0; i<4; i++){
+      dim = data.getDim(i);
+      size_t dimi = dim.getSize();
+      if (i==0) numtime=dimi;
+      if (i==1) nsigma = dimi;
+      if (i==2) ny = dimi;
+      if (i==3) nx = dimi;
+      printf(" %ld",dimi);
+   }
+   printf("\n");
+   nsigma = min(nsigma,NSIGMA);
+   Depth = nsigma/5;
+//float *LLL{new float[numtime*Depth*ny*nx]{}};  // 
+//printf(" LLL = %ld %ld  \n",sizeof(LLL), sizeof(LLL)/sizeof(float));
+int iLLL = 0; 
+//float* LLL = new float{[numtime]{[Depth]{[ny]{[nx]}}}};  // 
+//float LLL[numtime][Depth][ny][nx]= new float[numtime*Depth*ny*nx];
+
+// Declare start Vector specifying the index in the variable where
+// the first of the data values will be read.
+std::vector<size_t> start(4);
+
+start[0] = 0;
+start[1] = 0;
+start[2] = 0;
+start[3] = 0;
+
+// Declare count Vector specifying the edge lengths along each dimension of
+// the block of data values to be read.
+std::vector<size_t> count(4);
+
+count[0] = 1;
+count[1] = 1;   //Depth;
+count[2] = ny;
+count[3] = nx;
+// loop over sigma coordinate by small groups of size Depth (nsigma/5)
+for (start[1]=0; start[1]<nsigma; start[1]++) {
+   try {
+      //printf(" data.getVar %d  %ld \n",start[1],nsigma);
+      data.getVar(start,count,LLL);   
+      } catch (const std::exception& e){ printf(" error on data.getVar %s\n",e.what()); }
+      for (int it=0; it<numtime; it++){
+        int isig = start[1];
+       //for (int isig=0; isig<count[1]; isig++) {
+         // printf(" isig %d start[1] %ld \n",isig,start[1]);
+         ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+         {ij2=i*nx+j; if (MM[icase].Mask[ij2]>.5){
+            iLLL = 0*it*(Depth*ny*nx)+ 0*isig*(ny*nx) + i*(nx) + j;
+         if(icase==0) DD[ifour].U[isig][ij] = LLL[iLLL]; 
+         if(icase==1) DD[ifour].V[isig][ij] = LLL[iLLL];
+         if(icase==2) DD[ifour].W[isig][ij] = LLL[iLLL]; 
+         //if(icase==0) DD[ifour].U[isig+start[1]][ij] = LLL[it][isig][i][j]; 
+         //if(icase==1) DD[ifour].V[isig+start[1]][ij] = LLL[it][isig][i][j];
+         //if(icase==2) DD[ifour].W[isig+start[1]][ij] = LLL[it][isig][i][j]; 
+         ij++;
+         
+          } }  }
+       //}
+    }
+}
+//printf(" just before delete \n");
+//delete[] LLL;
+}  // icase loop
+
+// close the netcdf file
+dataFile.close();
+
+}
+
+
+
 
 void ReadDataFieldNetCDF(string& filename, int ifour, DData *DD, MMesh *MM)
 {
