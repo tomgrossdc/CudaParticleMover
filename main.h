@@ -27,7 +27,7 @@
 //  WARNING Change these do make clean
 #define NODE 110000     // 16384 g 8150 8050 8000  x 8100 8200
 #define NROWS 128      //  g 32
-#define NSIGMA 15
+#define NSIGMA 21
 #define NELE 220000    //  g 15800
 #define NUM_PARTICLES 150000   //250000 65000dec4  1500625 g1625 1600 x 1650 1700 1800 2000
 #define MAX_GLPARTICLES 150000 //250000 65000
@@ -74,7 +74,8 @@ extern "C" {
 
 struct PPart { 
     int p_id;
-    int i_ele; 
+    int i_ele;
+    int i_ele4[4]; 
     float x_present; 
     float y_present; 
     float z_present; 
@@ -87,6 +88,7 @@ struct MMesh {
     float Lat[NODE];	
     float X[NODE];
     float Y[NODE];
+    float ANGLE[NODE];
     float Xbox[4];
 	float depth[NODE];
 	float sigma[NSIGMA];
