@@ -10,3 +10,6 @@ Tailor Cronjob.sh to download NetCDF files and write them to your own directory 
 
 3D branch.  Add the vertical data to DData and Read
 
+four meshes
+Rework cuda move to do single variable at a time. Could work with Reg if it just uses the same MM[0] for all.
+Of course 3d adds complexity...
