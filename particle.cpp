@@ -34,9 +34,13 @@ switch(layout){
         //MM[0].firstnodeborder=99827;
         int imesh =0;     //  99827  108049;
         for (int ip=0; ip<num_P; ip++) {
+            host_P[ip].num_P = num_P;
+            host_P[ip].p_id = ip;
+            host_P[ip].i_ele = 55;
+            for (int i=0; i<4;i++) host_P[ip].i_ele4[i] = 55;
                 host_P[ip].x_present = MM[0].X[imesh] + 1000.*(rand()/(float)RAND_MAX - 0.5);  
                 host_P[ip].y_present = MM[0].Y[imesh] + 1000.*(rand()/(float)RAND_MAX - 0.5);  
-                host_P[ip].z_present = MM[0].depth[imesh]*500.*0.0;
+                host_P[ip].z_present = -2.0;    //MM[0].depth[imesh]/2.;
                 //host_P[ip].z_present = MM[0].Y[imesh]/5.;
                 imesh+=1; 
                 imesh=imesh%MM[0].firstnodeborder;

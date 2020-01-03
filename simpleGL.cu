@@ -197,7 +197,8 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     float time_now;
 
     size_t DDSizeGeneral = sizeof(DData)*4;
-    
+    size_t MMSizeGeneral = sizeof(MMesh)*4;
+
     if (iDD==-1){   // First update, need to localize DD, MM only once
                     // initialized in simpleGL.h, global to this file
                     
@@ -208,8 +209,8 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
                 printf(" Error on print DD[0].time_now Message: %s\n",e.what());
             }
         cudaMemcpy(DD, dev_DD,DDSizeGeneral,cudaMemcpyDeviceToHost);
-        cudaMemcpy(MM, dev_MM,sizeof(MMesh),cudaMemcpyDeviceToHost);
-                printf(" After cudaMemcpy  DD[0].time_now %g\n",DD[0].time_now);
+        cudaMemcpy(MM, dev_MM,MMSizeGeneral,cudaMemcpyDeviceToHost);
+                printf(" After cudaMemcpy  DD[0].time_now %fsec %f hr\n",DD[0].time_now,DD[0].time_now/3600.);
 
         iDD=0;
     }
@@ -221,11 +222,11 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     
 
     //int DD33=1;   256,64
-    move<<< 256,64 >>>(dptr,dev_P,dev_MM,dev_DD);
+    move3d<<< 256,64 >>>(dptr,dev_P,dev_MM,dev_DD);
     cudaDeviceSynchronize();
     DD[0].time_now += CUDA_STEPS* DT_SEC;   // 0.01f;   
     time_now = DD[0].time_now;
-
+//printf("After cuda move3d time_now = %fs %ghr\n",time_now, time_now/3600.);
     float time_frac=(time_now - DD[DD[0].DD3[0]].time)/(DD[DD[0].DD3[2]].time - DD[DD[0].DD3[0]].time);
     bool timetest =  (time_frac > .75);
     if (timetest ){
@@ -247,13 +248,13 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
         bool RunThreadRead = true;
         if (RunThreadRead){
-            std::thread t1(ReadDataRegNetCDF, std::ref(newername),std::ref(DD[0].DD3[3]),
+            std::thread t1(ReadFieldNetCDF, std::ref(newername),std::ref(DD[0].DD3[3]),
             std::ref(DD),std::ref(MM) );
             t1.join();   // Wait here for thread to finish. Makes threading moot.  Testing only.
             //t1.detach();    // Let it loose, but with no test for finished crashes
             }
         else{
-            ReadDataRegNetCDF(newername,DD[0].DD3[3],DD,MM);
+            ReadFieldNetCDF(newername,DD[0].DD3[3],DD,MM);
             }
 /*
 // List Nvidia resources to see if it is growing.
@@ -669,4 +670,421 @@ time_frac=(time_now - DD[DDT0].time)/(DD[DDT2].time - DD[DDT0].time);
 if ( cudaindex==0) DD[0].time_now = time_now;   // Only update dev_DD[] once
 //  Hopefully the other cudas have gotten started by now and don't need to read dev_DD[0].time_now
 }
+//  End of move()
 
+
+////////////////////////////////////////////////////////////////////////
+///////////////////  move3d  ///////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+//cuda kernel with four meshes and depth for 3d UVW's read from Field files
+//uses MM[0:2] for the UVW and MM[2] to provide angle and depth
+// move3d<<<  >>> ( pos,dev_P,dev_MM,dev_DD);
+
+__global__
+void move3d(float4 *pos, struct PPart *PP,struct MMesh *MM, struct DData *DD){
+// Cuda Kernal to move the particles
+// loop on all particles using cudaindex and stride
+// for each particle find i_ele, depth angle     findiele
+// interpolate sigma coordinate, find three corner values, average them to PP[iP].xyz
+// Did that with all three time steps. Time interpolate
+// Step PP[iP] position forward.
+
+int IpTest=-250;
+//int DeBuG = false;   //   true or false
+
+/*   real stuff now  */
+//float time_now;       //    now a passed argument
+//float time_now = DD[0].time_now;    // Will use dev_DD after the first pass with new DD
+//float time_frac=(time_now - DD[DDT0].time)/(DD[DDT2].time - DD[DDT0].time);
+double dt_sec=DT_SEC;
+//float deg2pi = 3.1415926/180.;
+
+//  Cuda strides
+int cudaindex = threadIdx.x + blockIdx.x * blockDim.x;
+int stride = blockDim.x * gridDim.x;
+
+//if (cudaindex==-1 | cudaindex==-2){  //  0 2500
+//    printf(" t.x=%d blockIdx.x=%d blockDim.x=%d gridDim.x=%d cudaindex=%d stride=%d\n",
+//    threadIdx.x,blockIdx.x,blockDim.x, gridDim.x,cudaindex,stride);
+//}
+
+// Main time loop. Loop CUDA_STEPS times between returns for plotting
+double  time_now = DD[0].time_now;
+//if (cudaindex==0) printf("move3d %d, time_now= %fs %gh\n",cudaindex,time_now,time_now/3600.);
+for (int itime=0; itime<CUDA_STEPS; itime++){
+    
+    
+    for(int Ip = cudaindex; Ip <NUM_PARTICLES; Ip += stride){
+        
+        // Find surrounding triangle of Particle for all three meshes
+        //  PP[Ip].i_ele4[iMM]
+        //  PP[Ip].factor4[iMM][0:2]
+        for (int iMM=0; iMM<3; iMM++) 
+        {
+          /*  if (Ip==-1 && itime==0) {
+                printf("move3d before findiele itime= %d, time_now= %fs %gh\n",itime,time_now,time_now/3600.);
+                for (int i_ele=0; i_ele<47184; i_ele+=12500)
+                printf(" iMM = %d ele_func_tripart i_ele = %d ; triconnect = %ld\n",
+                    iMM, i_ele, MM[iMM].tri_connect[i_ele][0]);
+            }
+          */
+          //    findiele(Ip,iMM,PP,MM); 
+                findielefake(Ip,iMM,PP,MM); 
+
+        }  
+        PP[Ip].answer[0]=0.0;
+
+        if (Ip==IpTest && itime==0) printf(" move3d finished findielefake %d\n",itime);
+        // interpolate values for angle and depth at PP[Ip].x,y    
+        float VAR[3];
+        int iMM=2;    //  mesh for w, angle and depth
+        for (int i=0; i<3; i++) 
+        { // i_ele is the element, ele[i_ele[0:2] are the nodes at corners of triangle i_ele
+            long elei = MM[iMM].ele[PP[Ip].i_ele4[iMM]][i];
+            VAR[i]=MM[iMM].ANGLE[elei];
+        }
+        if (Ip==IpTest && itime==0) printf("move3d before Interpolate2D findiele itime= %d, time_now= %fs %gh\n",itime,time_now,time_now/3600.);
+        Interpolate2D(Ip,iMM,PP,VAR); 
+        float angle=PP[Ip].answer[0];
+        //or
+        iMM=2; for (int i=0; i<3; i++) VAR[i]=MM[iMM].depth[MM[iMM].ele[PP[Ip].i_ele4[iMM]][i]];
+        if (Ip==IpTest) printf(" depths = %g %g %g \n",VAR[0],VAR[1],VAR[2]);
+        Interpolate2D(Ip,iMM,PP,VAR);  
+        float depth=PP[Ip].answer[0]; 
+        if (Ip==IpTest && itime==0) printf("move3d after Interpolate2D angle[%d]=%g  depth=%g\n",Ip,angle,depth);
+
+        // Find the isigmap, isigmam and sigmafrac 
+        //  U[iP] = U[isigmap]*sigmafrac +U[isigmam]*(1.0-sigmafrac)
+        // do three times and use timefrac to produce final VAR[3] at corners
+        // iMM = 0U  1V  2W   
+        // Only works for UVW.  In future add special cases 3T 4S iMM=iMM-1 or -2 
+        if (Ip==IpTest && itime==0) 
+          printf("move3d before Interpolatesigma itime= %d, time_now= %fs %gh\n"
+               ,itime,time_now,time_now/3600.);
+        iMM=0; Interpolatesigma(Ip, iMM, PP, DD, MM, depth,time_now); 
+        float Up=PP[Ip].answer[0];
+        iMM=1; Interpolatesigma(Ip, iMM, PP, DD, MM, depth,time_now); 
+        float Vp=PP[Ip].answer[0];
+        //Up = 1.0; 
+        //Vp = 0.0; 
+        float cosa = cos(angle);
+        float sina = sin(angle);
+        float Upnow = cosa*Up -sina*Vp;
+        float Vpnow = sina*Up +cosa*Vp;
+        iMM=2; Interpolatesigma(Ip, iMM, PP, DD, MM, depth,time_now); 
+        float Wpnow=PP[Ip].answer[0];
+        //Wpnow = 0.0;
+        if (Ip==IpTest && itime==0) printf("move3d after sigma UVp[%d]= %g %g UVWpnow= %g, %g, %g  angle=%g  depth=%g\n"
+           ,Ip,Up,Vp,Upnow, Vpnow, Wpnow,angle,depth);
+
+        
+        /*  Now have time and space interpolates of U,V,W for particle */
+        /* Apply them to the particle coordinates and done! 
+        (unless temporal runge kutta is needed. 
+            Running goofy small time steps)*/
+            
+            PP[Ip].x_present += dt_sec*(Upnow*1.) ; 
+            PP[Ip].y_present += dt_sec*(Vpnow*1.); 
+            PP[Ip].z_present += dt_sec*Wpnow*1.0;
+            PP[Ip].z_present = min(PP[Ip].z_present, -0.01);       // if z_p is above -0.01
+            PP[Ip].z_present = max(PP[Ip].z_present, -depth);    // if z_p is below -depth
+
+            // End of Particle loop on Ip
+        }
+        
+        // End of a time step, increment to next  time_now += dt_sec;
+        // if time_frac >1, then it will fall out of the loop and not increment PP.timenow
+        //if (cudaindex==2) printf(" 1=%lf",time_now);
+
+        time_now+=dt_sec;    
+        //if (cudaindex==2 && itime==0) printf("move3d end timeloop itime= %d, time_now= %lfs %lfh\n",itime,time_now,time_now/3600.);
+        //if (cudaindex==2 && itime==(CUDA_STEPS-1)) printf("move3d end timeloop itime= %d, time_now= %lfs %lfh\n",itime,time_now,time_now/3600.);
+        //if (cudaindex==2) printf(" 2=%lf",time_now);
+    }
+    // Update the VBO  pos[]
+    //unsigned int maxGLnum = blockDim.x*blockDim.y*gridDim.x*gridDim.y;
+    //maxGLnum = MAX_GLPARTICLES;
+    float scale = SCALE_GL;
+    for(int Ip = cudaindex; Ip <NUM_PARTICLES; Ip += stride){
+        int Ipx = Ip%MAX_GLPARTICLES;
+        pos[Ipx] = make_float4(scale*PP[Ip].x_present,1000.*scale*PP[Ip].z_present,-scale*PP[Ip].y_present,  1.0f);
+    }
+    
+    if (cudaindex==-1){
+        printf("end of move,  pos[0][0]=%g\n",pos[cudaindex]);
+    }
+    // end of move()
+    if ( cudaindex==0) DD[0].time_now = time_now;   // Only update dev_DD[] once
+    //  Hopefully the other cudas have gotten started by now and don't need to read dev_DD[0].time_now
+}
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+// update which triangle the iP is in for the three meshes   iMM 012 UVW  
+//           note the iMM=2 also gives iele and factors for ANGLE and depth
+// Sets PP[Ip].i_ele4[iMM] and the factors  PP[Ip].factor4[iMM][0:2] 
+// for (in iMM=0; iMM<3; iMM++)
+__device__ void findielefake(int Ip,int iMM,struct PPart *PP, struct MMesh *MM)
+{
+
+
+    int i_ele, keepgoing, k;
+    float xpart, ypart;
+    float smallest_value = -0.01000; //  -.01  -0.001; 
+
+    // Find surrounding triangle of Particle
+    i_ele = PP[Ip].i_ele4[iMM];
+    xpart = PP[Ip].x_present;
+    ypart = PP[Ip].y_present;
+    //return;
+    //if(Ip==0) printf(" start findiele i_ele=%d \n",i_ele);
+    //  Check for out of domain/ grounded particle
+    //  do work if in-domain  else increment igrounded and skip main part of move
+    if (i_ele >= 0) { 
+        
+        keepgoing = 1; 
+        while (keepgoing  > 0 ){
+            
+            //if(Ip==0) printf(" keepgoing findielefake i_ele=%d ",i_ele);
+
+            //  if any of the f's are negative, walk that way and restart while loop
+            k=0;
+            PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + 
+            MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+            if ( PP[Ip].factor4[iMM][k] < smallest_value) { 
+                i_ele = MM[iMM].tri_connect[i_ele][0]; 
+            }
+            else { 
+                k=1;
+                PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+                if ( PP[Ip].factor4[iMM][k] < smallest_value ) { 
+                  i_ele = MM[iMM].tri_connect[i_ele][1] ; 
+            }
+            else { 
+                k=2;
+                PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+                if ( PP[Ip].factor4[iMM][k] < smallest_value ) { 
+                i_ele = MM[iMM].tri_connect[i_ele][2] ;
+                }
+                else {
+                   //  Found it, iele,   all f's are positive 
+                   keepgoing = 0;
+            }
+            }
+         }
+         if (i_ele < 0) {    // newly grounded particle, zero him out.
+               PP[Ip].factor4[iMM][0]=0.0; PP[Ip].factor4[iMM][1]=0.0; PP[Ip].factor4[iMM][2]=0.0;
+               PP[Ip].i_ele4[iMM] = i_ele;
+               keepgoing = 0;
+         }
+         if (keepgoing>0) keepgoing++;
+         if (keepgoing > 500) { //printf(" k%d  ",Ip);
+         i_ele=-1;
+         PP[Ip].i_ele4[iMM] = -1;
+         PP[Ip].x_present=0.0;
+         PP[Ip].y_present=0.0;
+         PP[Ip].z_present=0.0;
+
+         keepgoing=0;}
+       }   
+       
+       //return;
+       if (i_ele>=0){     // good particle still in the mesh
+        PP[Ip].i_ele4[iMM]=i_ele;}
+       // end of while keepgoing 
+      
+
+}      
+//if(Ip==0) printf(" end findielefake i_ele=%d \n",i_ele);
+ 
+
+
+
+
+    return;
+}
+__device__ void findiele(int Ip,int iMM,struct PPart *PP, struct MMesh *MM)
+{
+    int i_ele, keepgoing, k;
+    float xpart, ypart;
+    float smallest_value = -0.01000; // -0.001; 
+
+    // Find surrounding triangle of Particle
+    i_ele = PP[Ip].i_ele4[iMM];
+    xpart = PP[Ip].x_present;
+    ypart = PP[Ip].y_present;
+    //if(Ip==0) printf(" start findiele i_ele=%d \n",i_ele);
+    //  Check for out of domain/ grounded particle
+    //  do work if in-domain  else increment igrounded and skip main part of move
+    if (i_ele >= 0) { 
+        
+        keepgoing = 1; 
+        while (keepgoing  == 1){
+            
+            //if(Ip==0) printf(" keepgoing findiele i_ele=%d \n",i_ele);
+
+            //  if any of the f's are negative, walk that way and restart while loop
+            k=0;
+            PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + 
+            MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+            if ( PP[Ip].factor4[iMM][k] < smallest_value) { 
+                i_ele = MM[iMM].tri_connect[i_ele][0]; 
+            }
+            else { 
+                k=1;
+                PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+                if ( PP[Ip].factor4[iMM][k] < smallest_value ) { 
+                  i_ele = MM[iMM].tri_connect[i_ele][1] ; 
+            }
+            else { 
+                k=2;
+                PP[Ip].factor4[iMM][k]=MM[iMM].a_frac[i_ele][k]*xpart + MM[iMM].b_frac[i_ele][k]*ypart + MM[iMM].c_frac[i_ele][k];
+                if ( PP[Ip].factor4[iMM][k] < smallest_value ) { 
+                i_ele = MM[iMM].tri_connect[i_ele][2] ;
+                }
+                else {
+                   //  Found it, iele,   all f's are positive 
+                   keepgoing = 0;
+            }
+            }
+         }
+         if (i_ele < 0) {    // newly grounded particle, zero him out.
+               PP[Ip].factor4[iMM][0]=0.0; PP[Ip].factor4[iMM][1]=0.0; PP[Ip].factor4[iMM][2]=0.0;
+               PP[Ip].i_ele = i_ele;
+               keepgoing = 0;
+         }
+       }   // end of while keepgoing 
+       
+       PP[Ip].i_ele4[iMM]=i_ele;
+
+}      
+//if(Ip==0) printf(" end findiele i_ele=%d \n",i_ele);
+
+}
+
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+// find 2d interpolated ANGLE(icase==0), depth(icase==1)
+//  input is X,Y, A of i_ele points along with factor4
+// MM[iMM].X[i_ele4[0:2]] MM[iMM].Y[i_ele4[0:2]] MM[iMM].ANGLE[i_ele4[0:2]] 
+// PP[Ip].factor4[iMM][i_ele[0:]]    
+// 2Dinterpolate(Ip,iMM,PP,MM,icase);  // icase = 0U, 1V, 2W, 3ANGLE, 4depth  
+//    maybe do  VAR[3] = MM[iMM].ANGLE[i_ele4[0:2]]  instead of icase 
+//    That way we can feed it the vertical interpolates of UVW[3]
+//float VAR[3];
+//iMM=3; for (int i=0; i<3; i++) VAR[i]=MM[iMM].angle[PP[Ip].iele4[iMM][i]];
+//float angle = 2Dinterpolate(Ip,iMM,PP,MM,VAR);
+//iMM=4; for (int i=0; i<3; i++) VAR[i]=MM[iMM].depth[PP[Ip].iele4[iMM][i]];
+//float depth = 2Dinterpolate(Ip,iMM,PP,MM,VAR); 
+
+__device__ void Interpolate2D(int Ip, int iMM, struct PPart *PP, float *VAR)
+{
+    /*
+    iMM=3; 
+    for (int i=0; i<3; i++) 
+    { // i_ele is the element, ele[i_ele[0:2] are the nodes at corners of triangle i_ele
+        long elei = MM[iMM].ele[PP[Ip].iele4[iMM][i]];
+        VAR[i]=MM[iMM].angle[elei];
+    }
+    float angle = 2Dinterpolate(Ip,iMM,PP,MM,VAR);
+    */
+
+    float factor0=PP[Ip].factor4[iMM][0];
+    float factor1=PP[Ip].factor4[iMM][1];
+    float factor2=PP[Ip].factor4[iMM][2];
+    
+   PP[Ip].answer[0] = factor0*VAR[0]+factor1*VAR[1]+factor2*VAR[2];
+
+}
+
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+
+__device__ void Interpolatesigma(int Ip, int iMM, 
+    struct PPart *PP, struct DData *DD, struct MMesh *MM, float depth, float time_now )
+{
+    // Find the isigmap, isigmam and sigmafrac 
+    //  U[iP] = U[isigmap]*sigmafrac +U[isigmam]*(1.0-sigmafrac)
+    // do three times and use timefrac to produce final VAR[3] at corners
+    // iMM = 0U  1V  2W   
+    // Only works for UVW.  In future add special cases 3T 4S iMM=iMM-1 or -2     int DDT0, DDT2;
+    int IpTest = -250;
+
+    int i_ele = PP[Ip].i_ele4[iMM];   
+    float vart[3];
+    float var[3]; 
+    int sp, sm;
+
+    float sigIp = PP[Ip].z_present / depth ;    // 0 to -1.0
+    //  count up in sp to walk down in depth
+    sp=1;
+    while(MM[iMM].sigma[sp]< sigIp) sp++;  // increment if sp is still above sigIp
+    sm = sp-1;                         // sp is below sigIp,  sm is above
+    float sigfrac = (sigIp-MM[iMM].sigma[sp])/(MM[iMM].sigma[sm]- MM[iMM].sigma[sp]);
+    
+    // Pick out the three DD's to interpolate in time
+    int DD3[3];
+    DD3[0]=DD[0].DD3[0];
+    DD3[1]=DD[0].DD3[1];
+    DD3[2]=DD[0].DD3[2];
+    int DDT0=DD3[0];
+    //DDT1=DD3[1];
+    int DDT2=DD3[2];
+    
+    if (Ip==IpTest  ) printf(" start of interpretsigma iMM=%d  z_present= %g /depth=%g =sigIP = %g \n  sm,sp sigma[%d]=%g sigma[%d]=%g sigIP %g sigfrac %g\n"
+    ,iMM,PP[Ip].z_present, depth,sigIp,sm,MM[iMM].sigma[sm],sp,MM[iMM].sigma[sp],sigIp,sigfrac);
+    // loop on time DD3[i]
+    // loop on three corners ele[i_ele][j]
+    // average sm and sp at the corner
+    
+    for (int it=0; it<3; it++){  // time loop for DD3[it]
+        for (int j=0; j<3; j++){     // loop around corners to get sigma averaged variable
+            long ele0=MM[iMM].ele[i_ele][j];
+            if      (iMM==0){ // U
+                var[j] = DD[DD3[it]].U[sm][ele0]*sigfrac  + DD[DD3[it]].U[sp][ele0]* (1.0 - sigfrac);
+            }
+            else if (iMM==1){ // V    
+                var[j] = DD[DD3[it]].V[sm][ele0]*sigfrac  + DD[DD3[it]].V[sp][ele0]* (1.0 - sigfrac);
+            }
+            else if (iMM==2){ // W    
+                var[j] = DD[DD3[it]].W[sm][ele0]*sigfrac  + DD[DD3[it]].W[sp][ele0]* (1.0 - sigfrac);
+            }
+            else { printf(" \n\n Bad iMM in Interpolatesigma %d\n\n",iMM); }
+        }
+        // Have sigma average var[0:2] at the three corners
+        //interpolate to center, to get three time increments vart[0:2] 
+        //float factor0=PP[Ip].factor4[iMM][0];
+        //float factor1=PP[Ip].factor4[iMM][1];
+        //float factor2=PP[Ip].factor4[iMM][2];
+        vart[it]= PP[Ip].factor4[iMM][0]*var[0] 
+        + PP[Ip].factor4[iMM][1]*var[1]
+        + PP[Ip].factor4[iMM][2]*var[2];
+        
+        if (Ip==IpTest ) printf("  intersig DD3=%d var=%g %g %g vart=%g\n "
+             ,DD3[it],var[0],var[1],var[2],vart[it]);
+    }
+    // Finally interpolate in time to get final answer for U, V, W to mover PP[Ip]
+    // float time_now = DD[0].time_now;    // Will use dev_DD after the first pass with new DD
+    float time_frac=(time_now - DD[DDT0].time)/(DD[DDT2].time - DD[DDT0].time);
+    
+    //float a =  2.*vart[2] -4.*vart[1] +2.*vart[0];
+    //float b = -   vart[2] +4.*vart[1] +   vart[0];
+    //float c =                       vart[0];
+    //float Upnow = a*time_frac*time_frac + b*time_frac + c;
+float Upnow = ( 2.*vart[2] -4.*vart[1] +2.*vart[0])*time_frac*time_frac 
+             +(-   vart[2] +4.*vart[1] +   vart[0])*time_frac 
+             +(                      vart[0]);                
+
+
+
+/*  Now have time sigma and space interpolates of U,V,W for particle */
+PP[Ip].answer[0] = Upnow;
+        if (Ip==IpTest ) printf("  intersigend timenow=%fs timefrac=%g Upnow=%g\n ",time_now,time_frac,Upnow);
+
+
+}

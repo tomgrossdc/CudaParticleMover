@@ -81,6 +81,8 @@ printf("mesh::meshinit(int,int) old values: node=%ld  nsigma=%ld \n",node,nsigma
 	X = new float[node];
 	Y = new float [node];
 	depth = new float[node];
+   //angle = new float[node];
+
 	sigma = new float[nsigma];	
 	
 	factor = new float[3];
@@ -102,9 +104,10 @@ void Mesh::move_meshtoMMesh(int icase, struct MMesh *MM){
             MM[iMM].X[i]=   X[i];
             MM[iMM].Y[i]=   Y[i];
             MM[iMM].depth[i]=   depth[i];  
+            //MM[iMM].ANGLE[i]=   angle[i];  
             if (i%(MM[iMM].node/15)==0) {
-                printf(" MM[iMM].XY[%d] %g %g  MM[iMM].LonLat[%d]= %g %g \n",
-                i, MM[iMM].X[i],MM[iMM].Y[i],i,MM[iMM].Lon[i],MM[iMM].Lat[i] );
+                printf(" MM[%d].XY[%d] %g %g  MM[iMM].LonLat[%d]= %g %g  depth = %g\n",
+                iMM,i, MM[iMM].X[i],MM[iMM].Y[i],i,MM[iMM].Lon[i],MM[iMM].Lat[i], MM[iMM].depth );
             }
         }
         for(int i=(MM[iMM].node-8); i<MM[iMM].node; i++)
@@ -137,7 +140,7 @@ void Mesh::set_Mesh_MMESH(int icase, struct MMesh *MM){
 // Set variables  mesh.Lon, Lat, depth, sigma from MM.Lon etc.
 int iMM = max(icase-1,0); 
 cout<<" Mesh::set_Mesh_MMESH MM.node="<<MM[iMM].node<<endl;
-printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[iMM].node,MM[iMM].nsigma);
+printf("mesh.cpp set_Mesh_MMesh MM[%d].node=%d  MM.nsigma=%d\n",iMM,MM[iMM].node,MM[iMM].nsigma);
 
 // The arrays were initialized in Mesh() as empty arrays length[MM.node]
 
@@ -148,7 +151,7 @@ printf("mesh.cpp set_Mesh_MMesh MM.node=%d  MM.nsigma=%d\n",MM[iMM].node,MM[iMM]
 		Lon[i] =  MM[iMM].Lon[i]; 
 		Lat[i] =  MM[iMM].Lat[i];
 		depth[i]= MM[iMM].depth[i];
-
+      //angle[i] = MM[iMM].ANGLE[i];
 	}
 	for (int i=0; i<MM[iMM].nsigma; i++){
 		sigma[i]=MM[iMM].sigma[i];
@@ -672,9 +675,9 @@ struct tm * tday = gmtime(&MM[0].ToDay);
 
 void ReadMeshField(string& filename, int icase, struct MMesh *MM)
 {
-   // ReadMeshField will read four MM[0:3], U,V,W,Angle
+   // ReadMeshField will read one of four MM[0:3], U,V,W,Angle,depth
 
-//  icase =   0-Regular, 1-Field U,  2-Field V, 3-Field W, 4-Field Angle
+//  icase =   0-Regular, 1-Field U,  2-Field V, 3-Field W, Angle and depth
 int iMM=0;
 if (icase>0) iMM=icase-1;   //  fill up MM[0] with U, MM[1] with V etc.
 NcDim dim;
@@ -682,18 +685,20 @@ long ij;
 int nx,ny;
 int node,nodemore;
 // codes for netcdf variables Regular,  
-std::vector<std::string> MeshCode={
+std::vector<std::string> MeshCode={        // mask, x,y, bathy, sigma(or depth)
             "mask","Longitude","Latitude","h","Depth",                         //  bathymetry, sigma levels
-            "mask_u","lon_u","lat_u","","",        // u    eta_u, xi_u
-            "mask_v","lon_v","lat_v","","",        // v    eta_v, xi_v      
-            "mask_rho","lon_rho","lat_rho","h","s_rho",  // w zeta (surface) and depth   eta_rho, xi_rho
-            "angle","lon_rho","xi_rho","",""     // "angle between XI-axis and EAST"
+            "mask_u","lon_u","lat_u","","s_rho",        // u    eta_u, xi_u
+            "mask_v","lon_v","lat_v","","s_rho",        // v    eta_v, xi_v      
+            "mask_rho","lon_rho","lat_rho","h","s_w",  // w  eta_rho, xi_rho  h=depth, s_rho=sigma  
+            "mask_rho","lon_rho","lat_rho","angle","s_w",     // "angle between XI-axis and EAST" angle and sigma
             "mask_psi","lon_psi","lat_psi",""   //  psi    eta_psi,  xi_psi
         };
-cout<<"ReadMeshField: " << filename << endl;
+cout<<"ReadMeshField: " << filename << "   icase="<<icase<<endl;
 NcFile dataFile(filename, NcFile::read);
 
-   NcVar data=dataFile.getVar(MeshCode[0]);
+printf(" icase %d   MeshCode[%d]=",icase,(0+5*icase));
+cout << MeshCode[0+5*icase]<<endl;
+   NcVar data=dataFile.getVar(MeshCode[0+5*icase]);
    if(data.isNull()) printf(" data.isNull Mask/n");
 for (int i=0; i<2; i++){
       dim = data.getDim(i);
@@ -719,8 +724,10 @@ printf("sizeof Mask %ld\n",sizeof(Mask));
    for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
     { MM[iMM].Mask[ij] = Mask[i][j]; ij++; }  }
 
-   data=dataFile.getVar(MeshCode[1]);
-   if(data.isNull()) printf(" data.isNull Longitude/n");
+printf(" icase %d   MeshCode[%d]=",icase,(1+5*icase));
+cout << MeshCode[1+5*icase]<<endl;
+   data=dataFile.getVar(MeshCode[1+5*icase]);
+   if(data.isNull()) printf(" data.isNull Longitude /n");
    data.getVar(LLL);
     ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
        {if (Mask[i][j]>.5){MM[iMM].Lon[ij] = LLL[i][j]; ij++;} }  }
@@ -749,8 +756,10 @@ printf("sizeof Mask %ld\n",sizeof(Mask));
           summask=0; 
       } }  // i,j loop
 
-  data=dataFile.getVar(MeshCode[2]);
-  if(data.isNull()) printf(" data.isNull Latitude/n");
+printf(" icase %d   MeshCode[%d]=",icase,(2+5*icase));
+cout << MeshCode[2+5*icase]<<endl;
+  data=dataFile.getVar(MeshCode[2+5*icase]);
+  if(data.isNull()) printf(" data.isNull Latitude or xi_rho/n");
   data.getVar(LLL);
     ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
        {if (Mask[i][j]>.5){MM[iMM].Lat[ij] = LLL[i][j]; ij++;} }  }
@@ -780,32 +789,58 @@ printf("sizeof Mask %ld\n",sizeof(Mask));
           summask=0; 
       } }  // i,j loop
 
+//  icase==3 for rho grid W, angle, depth     Redo for the regular bathy case
+   if ( icase==3) {
+printf(" icase= %d  ANGLE and depth iMM=%d \n",icase,iMM);
 
-   data=dataFile.getVar(MeshCode[3]);
-   if(data.isNull()) printf(" data.isNull h/n");
-   data.getVar(LLL);
-    ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+cout << MeshCode[3+5*icase]<<endl;
+      data=dataFile.getVar("h");
+      if(data.isNull()) printf(" data.isNull h/n");
+      data.getVar(LLL);
+      ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
        {if (Mask[i][j]>.5){MM[iMM].depth[ij] = LLL[i][j]; ij++;} }  }
+       for (int i=0; i<ij; i+=ij/8)
+            printf("ReadMeshField h MM[%d].depth[%d]=%g\n",iMM,i,MM[iMM].depth[i]);
+   
+//   angle, depth always for  rho grid icase==3
 
-
+      data=dataFile.getVar("angle");
+      if(data.isNull()) printf(" data.isNull h/n");
+      data.getVar(LLL);
+      ij=0; for (int i=0; i<(ny); i++){for (int j=0; j<(nx); j++)
+       {if (Mask[i][j]>.5){MM[iMM].ANGLE[ij] = LLL[i][j]; ij++;} }  }
+       for (int i=0; i<ij; i+=ij/8)
+            printf("ReadMeshField angle MM[%d].ANGLE[%d]=%g\n",iMM,i,MM[iMM].ANGLE[i]);
+   }
+   else     // not case=3, angle and depth set to dummy values 
+      { for (int i=0; i<node; i++){
+         MM[iMM].ANGLE[i] = 180.;
+         MM[iMM].depth[i] =  66.;
+         }
+      }
     MM[iMM].node = node;
     printf(" masked Lon, Lat num ij = %ld\n",ij);
+ MM[iMM].node = MM[iMM].firstnodeborder;  // delete the bad border points    initialize the first border node
 
 
    /* Although labeled sigma, in Regulargrid this is Depth
    Apparently the regular grid gets rid of sigma variations
    and just uses fixed depths for the 3d
    */
-   data=dataFile.getVar(MeshCode[4]);
-   if(data.isNull()) printf(" data.isNull Depth/n");
-   dim = data.getDim(0);
-   size_t dimi = dim.getSize();
-   MM[iMM].nsigma=dimi;
-   cout<<" ReadMesh Depth dimi="<<dimi <<endl;
-   double sigma[dimi];
-   data.getVar(sigma);
-   for (int i=0; i<dimi; i++) MM[iMM].sigma[i]=sigma[i];
-
+  // Sigma   Regular grid, or angle/w rho grid
+ // All get a sigma, dimension can change 
+printf(" icase %d   MeshCode[%d]=",icase,(4+5*icase));
+cout << MeshCode[4+5*icase]<<endl;
+      data=dataFile.getVar(MeshCode[4+5*icase]);
+      if(data.isNull()) printf(" data.isNull Depth/n");
+      dim = data.getDim(0);
+      size_t dimi = dim.getSize();
+      MM[iMM].nsigma=dimi;
+      cout<<" ReadMesh Depth dimi="<<dimi <<endl;
+      double sigma[dimi];
+      data.getVar(sigma);
+      for (int i=0; i<dimi; i++) MM[iMM].sigma[i]=sigma[i];
+      
 
 
 // not needed as LL Mask will be deleted on exit from this routine
