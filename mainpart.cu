@@ -92,7 +92,7 @@ int  main( void ) {
         Mesh mesh;
 
         //   icase-1 is used to include Regular call during testing.  Fix later...
-        for (icase=1; icase<5; icase++){
+        for (icase=1; icase<4; icase++){
             printf(" \n\n Read and Set MM[%d]\n",icase-1);
             ReadMeshField(newername,icase,MM);
             node = MM[icase-1].node;
@@ -107,9 +107,13 @@ int  main( void ) {
         }
         printf("\nmain  after set_Mesh_MMESH  mesh.node %ld  node %d  MM[0].node %d\n"
         ,mesh.node, node, MM[0].node);
-        
+        int iMM=0; int i_ele = 50; 
+        for (iMM=0; iMM<4; iMM++){for (int iP=0; iP<MM[iMM].node; iP+=5000)
+            printf(" main Mesh set MM[%d].depth[%d] = %g  MM.ANGLE = %g\n",
+            iMM,iP, MM[iMM].depth[iP], MM[iMM].ANGLE[iP]);
+        }
         //MMesh *dev_MM;    // no need to do this. Space is cudaMalloc'd and call is to (struct MMesh dev_MM)
-        size_t MMSizeGeneral = sizeof(MMesh);
+        size_t MMSizeGeneral = 4*sizeof(MMesh);
         cudaMalloc((void**)&dev_MM,MMSizeGeneral);
         cudaMemcpy(dev_MM,MM,MMSizeGeneral,cudaMemcpyHostToDevice);
                 
@@ -182,9 +186,9 @@ int  main( void ) {
             string newername = NetCDFfiledate(DD[0].filetemplate,DD);
             //ReadDataRegNetCDF(newername,ifour,DD,MM);
             ReadFieldNetCDF(newername,ifour, DD, MM);
-            printf("ReadData finished,  DD[%d].time=%g sec time=%g hr \n",ifour,DD[ifour].time,DD[ifour].time/3600.);
+            printf("ReadData finished,  DD[%d].time=%f sec time=%g hr \n",ifour,DD[ifour].time,DD[ifour].time/3600.);
             int id = 50; int isig=2;
-            printf("ReadData DD[%d].time %gs %ghr \n  DD[%d].UVW[%d][%d] %g %g %g \n  MM[0].XY[%d]= %g  %g\n\n",
+            printf("ReadData DD[%d].time %fs %ghr \n  DD[%d].UVW[%d][%d] %g %g %g \n  MM[0].XY[%d]= %g  %g\n\n",
               ifour, DD[ifour].time,DD[ifour].time/3600,
               ifour,isig, id,DD[ifour].U[isig][id],DD[ifour].V[isig][id],DD[ifour].W[isig][id],
               id,MM[0].X[id],MM[0].Y[id]);
@@ -192,6 +196,7 @@ int  main( void ) {
     cout<<endl;
     time_now = (DD[0].time + DD[1].time)/2.;   // timefrac = .25
     for (int i=0; i<4; i++) DD[i].time_now = time_now;
+    printf(" mainpart  DD[0].time_now = %f DD[0].time = %f \n",DD[0].time_now,DD[0].time);
 
     for (int ip=0; ip<num_P; ip++) host_P[ip].time_now=time_now;
 

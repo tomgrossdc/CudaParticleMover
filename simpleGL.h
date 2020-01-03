@@ -79,7 +79,7 @@ char **pArgv = NULL;
 PPart *host_P;
 PPart *dev_P;
 MMesh *dev_MM;
-MMesh MM[2];
+MMesh MM[4];
 DData *dev_DD;
 DData DD[4];
 int DD3[4];
@@ -107,14 +107,21 @@ void mouse(int button, int state, int x, int y);
 void motion(int x, int y);
 void timerEvent(int value);
 
+void ReadData(double time_now, int ifour, DData *DD, MMesh *MM);
+
+const char *sSDKsample = "simpleGL (VBO)";
 // Cuda functionality
 void runCuda(struct cudaGraphicsResource **vbo_resource);
 
 int mainsimpleGL(struct PPart *PP, struct MMesh *MM, struct DData *DD);
 struct TimeNow { float g_time_now ; };
 __global__ void move(float4 *pos, struct PPart *PP,struct MMesh *MM, struct DData *DD);
+__global__ void move3d(float4 *pos, struct PPart *PP,struct MMesh *MM, struct DData *DD);
 
-void ReadData(double time_now, int ifour, DData *DD, MMesh *MM);
 
-const char *sSDKsample = "simpleGL (VBO)";
+__device__ void findiele(int Ip,int iMM,struct PPart *PP, struct MMesh *MM);   
+__device__ void Interpolate2D(int Ip, int iMM, struct PPart *PP, float *VAR);
+__device__ void Interpolatesigma(int Ip, int iMM, 
+   struct PPart *PP, struct DData *DD, struct MMesh *MM, float depth, float time_now );
 
+__device__ void findielefake(int Ip,int iMM,struct PPart *PP, struct MMesh *MM);

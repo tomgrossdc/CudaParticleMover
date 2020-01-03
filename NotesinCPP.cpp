@@ -209,3 +209,39 @@ Read 3D data. Confirm that UVW's below Depth are set to zero.
 Then make a 3D move.  
 */
 
+ move3d  the new kernel
+
+ /* //Backbone of new cuda move3d
+// update position for the three meshes   iMM 012 UVW  
+//           note the iMM=2 also gives ANGLE and depth
+// Sets PP[Ip].i_ele4[iMM] and the factors  PP[Ip].factor4[iMM][0:2] 
+for (in iMM=0; iMM<3; iMM++)
+findiele(Ip,iMM,PP,MM);   
+
+// find 2d interpolated ANGLE(icase==0), depth(icase==1)
+//  input is X,Y, A of i_ele points along with factor4
+MM[iMM].X[i_ele4[0:2]] MM[iMM].Y[i_ele4[0:2]] MM[iMM].ANGLE[i_ele4[0:2]] 
+PP[Ip].factor4[iMM][i_ele[0:]]    
+interpolate2D(Ip,iMM,PP,MM,icase);  // icase = 0U, 1V, 2W, 3ANGLE, 4depth  
+maybe do  VAR[3] = MM[iMM].ANGLE[i_ele4[0:2]]  instead of icase 
+That way we can feed it the vertical interpolates of UVW[3]
+angle = 2Dinterpolate(Ip,iMM,PP,MM,3);    
+depth = 2Dinterpolate(Ip,iMM,PP,MM,4); 
+
+// vertical interpolates of UVW at three points
+// for(i=0:2) iele=i_ele[i]; 
+// for iz=0:nsigma find izp, izm 
+// fact=z_present(izp-izm) 
+// U[i]=PPU[izp]*fc +PPU[izm]*(1-fc)
+//      do a DDT loop to find the three time steps for U's
+U[3] = Vertinterpolate(depth,Ip,iMM,PP,MM,DD, icase=0);
+V[3] = Vertinterpolate(depth,Ip,iMM,PP,MM,DD, icase=1);
+W[3] = Vertinterpolate(depth,Ip,iMM,PP,MM,DD, icase=2);
+
+//  Apply the factor4 's to U[3] to get U,V,W
+//  Apply angle to U,V
+//  Time average the three time steps of the UVW's
+//  Time step PP.X,Y,Z  
+
+*/
+

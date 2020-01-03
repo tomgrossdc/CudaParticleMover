@@ -264,9 +264,28 @@ for (start[1]=0; start[1]<nsigma; start[1]++) {
        //}
     }
 }
+
+
 //printf(" just before delete \n");
 //delete[] LLL;
 }  // icase loop
+
+// ocean_time:units = "seconds since 2016-01-01 00:00:00" ;
+//	ocean_time:calendar = "gregorian" ;
+   NcVar datat=dataFile.getVar("ocean_time");
+   if(datat.isNull()) printf(" datat.isNull ocean_time/n");
+   double LL[10];  // Bigger array works better than *LL, same as LL[1]  double is float
+   datat.getVar(LL);
+   //   try to use older data files to fill in missing ones
+   if(LL[0] > DD[ifour].time) 
+      {
+         DD[ifour].time = LL[0];   //Seconds 
+      }
+      else
+      {
+         DD[ifour].time +=3599. * 4. ;   // four hours since the previous value in this position
+      }
+printf(" ReadFieldNetCDF ocean_time LL[0]=%g DD[0].time=%g \n", LL[0],DD[0].time);   
 
 // close the netcdf file
 dataFile.close();
@@ -381,7 +400,7 @@ for (start[1]=0; start[1]<15; start[1]+=count[1]) {
       {
          DD[ifour].time +=3599. * 4. ;   // four hours since the previous value in this position
       }
-   
+printf(" ReadDataFieldNetCDF ocean_time LL[0]=%g DD[0].time=%g \n", LL[0],DD[0].time);   
 
 dataFile.close();
 

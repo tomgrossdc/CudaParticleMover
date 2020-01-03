@@ -73,9 +73,11 @@ extern "C" {
 }
 
 struct PPart { 
+    float answer[4];
     int p_id;
     int i_ele;
     int i_ele4[4]; 
+    float factor4[4][3];
     float x_present; 
     float y_present; 
     float z_present; 
